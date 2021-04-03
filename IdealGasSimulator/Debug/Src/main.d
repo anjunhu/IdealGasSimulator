@@ -18,6 +18,11 @@ Src/main.o: ../Src/main.c ../Inc/main.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dma.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dma_ex.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_cortex.h \
+ ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_adc.h \
+ ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_adc.h \
+ ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_adc_ex.h \
+ ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dac.h \
+ ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dac_ex.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_exti.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_flash.h \
  ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_flash_ex.h \
@@ -47,12 +52,12 @@ Src/main.o: ../Src/main.c ../Inc/main.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/queue.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/event_groups.h \
  ../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h \
- ../Inc/arm_math.h ../Drivers/CMSIS/Include/cmsis_compiler.h \
+ ../Inc/lab1util.h ../Inc/arm_math.h \
+ ../Drivers/CMSIS/Include/cmsis_compiler.h \
  ../Inc/stm32l4s5i_iot01_accelero.h ../Inc/stm32l4s5i_iot01.h \
  ../Inc/lsm6dsl.h ../Inc/accelero.h ../Inc/gyro.h \
  ../Inc/stm32l4s5i_iot01_gyro.h ../Inc/stm32l4s5i_iot01_hsensor.h \
  ../Inc/hts221.h ../Inc/tsensor.h ../Inc/hsensor.h \
- ../Inc/stm32l4s5i_iot01_magneto.h ../Inc/lis3mdl.h ../Inc/magneto.h \
  ../Inc/stm32l4s5i_iot01_nfctag.h ../Inc/../Components/st25dv/st25dv.h \
  ../Inc/../Components/st25dv/st25dv_reg.h \
  ../Inc/stm32l4s5i_iot01_psensor.h ../Inc/lps22hb.h ../Inc/psensor.h \
@@ -97,6 +102,16 @@ Src/main.o: ../Src/main.c ../Inc/main.h \
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dma_ex.h:
 
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_cortex.h:
+
+../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_adc.h:
+
+../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_ll_adc.h:
+
+../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_adc_ex.h:
+
+../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dac.h:
+
+../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_dac_ex.h:
 
 ../Drivers/STM32L4xx_HAL_Driver/Inc/stm32l4xx_hal_exti.h:
 
@@ -156,6 +171,8 @@ Src/main.o: ../Src/main.c ../Inc/main.h \
 
 ../Middlewares/Third_Party/FreeRTOS/Source/include/timers.h:
 
+../Inc/lab1util.h:
+
 ../Inc/arm_math.h:
 
 ../Drivers/CMSIS/Include/cmsis_compiler.h:
@@ -179,12 +196,6 @@ Src/main.o: ../Src/main.c ../Inc/main.h \
 ../Inc/tsensor.h:
 
 ../Inc/hsensor.h:
-
-../Inc/stm32l4s5i_iot01_magneto.h:
-
-../Inc/lis3mdl.h:
-
-../Inc/magneto.h:
 
 ../Inc/stm32l4s5i_iot01_nfctag.h:
 

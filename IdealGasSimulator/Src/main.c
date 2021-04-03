@@ -23,11 +23,11 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
+#include "lab1util.h"
 #include "arm_math.h"
 #include "stm32l4s5i_iot01_accelero.h"
 #include "stm32l4s5i_iot01_gyro.h"
 #include "stm32l4s5i_iot01_hsensor.h"
-#include "stm32l4s5i_iot01_magneto.h"
 #include "stm32l4s5i_iot01_nfctag.h"
 #include "stm32l4s5i_iot01_psensor.h"
 #include "stm32l4s5i_iot01_tsensor.h"
@@ -65,8 +65,6 @@ UART_HandleTypeDef huart1;
 osThreadId measureHandle;
 osThreadId transmitHandle;
 osThreadId listenHandle;
-osMessageQId displayBufferHandle;
-osTimerId myTimer01Handle;
 osMutexId consoleMutexHandle;
 /* USER CODE BEGIN PV */
 
@@ -84,7 +82,6 @@ static void MX_DAC1_Init(void);
 void StartMeasureTask(void const * argument);
 void StartTransmitTask(void const * argument);
 void StartListenTask(void const * argument);
-void Callback01(void const * argument);
 
 /* USER CODE BEGIN PFP */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
@@ -93,11 +90,9 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-uint8_t buffer[60];
+uint8_t buffer[100];
 int16_t acceleration[3];
-int16_t magneto[3];
 float gyro[3];
-float humidity;
 float pressure;
 float temperature;
 int mode = 0;
@@ -161,19 +156,9 @@ int main(void)
 	/* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
 
-  /* Create the timer(s) */
-  /* definition and creation of myTimer01 */
-  osTimerDef(myTimer01, Callback01);
-  myTimer01Handle = osTimerCreate(osTimer(myTimer01), osTimerPeriodic, NULL);
-
   /* USER CODE BEGIN RTOS_TIMERS */
 	/* start timers, add new ones, ... */
   /* USER CODE END RTOS_TIMERS */
-
-  /* Create the queue(s) */
-  /* definition and creation of displayBuffer */
-  osMessageQDef(displayBuffer, 50, uint8_t);
-  displayBufferHandle = osMessageCreate(osMessageQ(displayBuffer), NULL);
 
   /* USER CODE BEGIN RTOS_QUEUES */
 	/* add queues, ... */
@@ -203,41 +188,6 @@ int main(void)
   /* Infinite loop */
   /* USER CODE BEGIN WHILE */
 	while (1) {
-		BSP_ACCELERO_AccGetXYZ(acceleration);
-		humidity = BSP_HSENSOR_ReadHumidity();
-		BSP_MAGNETO_GetXYZ(magneto);
-		BSP_GYRO_GetXYZ(gyro);
-		pressure = BSP_PSENSOR_ReadPressure();
-		HAL_Delay(100);
-
-		memset(buffer, 0, strlen(buffer));
-		switch (mode) {
-		case 0:
-			sprintf((char*) buffer, "Acceleration = [%d, %d, %d] \n\n",
-					(int) acceleration[0], (int) acceleration[1],
-					(int) acceleration[2]);
-			HAL_UART_Transmit(&huart1, buffer, strlen(buffer), 5);
-			break;
-		case 1:
-			sprintf((char*) buffer, "Magnetometer = [%d, %d, %d]\n",
-					(int) magneto[0], (int) magneto[1], (int) magneto[2]);
-			HAL_UART_Transmit(&huart1, buffer, strlen(buffer), 5);
-			break;
-		case 2:
-			sprintf((char*) buffer, "Angular Acceleration = [%d, %d, %d]\n",
-					(int) (gyro[0]), (int) (gyro[1]), (int) (gyro[2]));
-			HAL_UART_Transmit(&huart1, buffer, strlen(buffer), 5);
-			break;
-		case 3:
-			sprintf((char*) buffer,
-					"Pressure = %d\n, Humidity = %d\n, Temperature = %d\n",
-					(int) pressure, (int) humidity, (int) temperature);
-			HAL_UART_Transmit(&huart1, buffer, strlen(buffer), 5);
-			break;
-		default:
-			sprintf((char*) buffer, "Humidity = %d\n", (int) humidity);
-			HAL_UART_Transmit(&huart1, buffer, strlen(buffer), 5);
-		}
 
     /* USER CODE END WHILE */
 
@@ -634,7 +584,7 @@ void StartMeasureTask(void const * argument)
   /* USER CODE BEGIN 5 */
 	/* Infinite loop */
 	for (;;) {
-		osDelay(fmin(pow(10, mode + 1), 2500));
+		osDelay(50);
 
 #ifdef USE_SIGNAL
 		if (osThreadSuspend(transmitHandle) != osOK){
@@ -644,35 +594,15 @@ void StartMeasureTask(void const * argument)
 		osMutexWait (consoleMutexHandle, osWaitForever);
 #endif
 		memset(buffer, 0, strlen(buffer));
-		switch (mode) {
-		case 0:
-			BSP_ACCELERO_AccGetXYZ(acceleration);
-			sprintf((char*) buffer, "Acceleration = [%d, %d, %d] \n\n",
-					(int) acceleration[0], (int) acceleration[1],
-					(int) acceleration[2]);
-			break;
-		case 1:
-			BSP_MAGNETO_GetXYZ(magneto);
-			sprintf((char*) buffer, "Magnetometer = [%d, %d, %d]\n",
-					(int) magneto[0], (int) magneto[1], (int) magneto[2]);
-			break;
-		case 2:
-			BSP_GYRO_GetXYZ(gyro);
-			sprintf((char*) buffer, "Angular Acceleration = [%d, %d, %d]\n",
-					(int) (gyro[0]), (int) (gyro[1]), (int) (gyro[2]));
-			break;
-		case 3:
-			humidity = BSP_HSENSOR_ReadHumidity();
-			pressure = BSP_PSENSOR_ReadPressure();
-			temperature = BSP_TSENSOR_ReadTemp();
-			sprintf((char*) buffer,
-					"Pressure = %d\n, Humidity = %d\n, Temperature = %d\n",
-					(int) pressure, (int) humidity, (int) temperature);
-			break;
-		default:
-			humidity = BSP_HSENSOR_ReadHumidity();
-			sprintf((char*) buffer, "Humidity = %d\n", (int) humidity);
-		}
+		BSP_ACCELERO_AccGetXYZ(acceleration);
+		BSP_GYRO_GetXYZ(gyro);
+		pressure = BSP_PSENSOR_ReadPressure();
+		temperature = BSP_TSENSOR_ReadTemp();
+		sprintf((char*) buffer, "Ac=[%d, %d, %d]\nAngAc=[%d, %d, %d]\nP=%d\nT=%d\n",
+				(int) acceleration[0], (int) acceleration[1],
+				(int) acceleration[2], (int) (gyro[0]), (int) (gyro[1]), (int) (gyro[2]),
+				(int) pressure, (int) temperature);
+
 		HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, GPIO_PIN_SET);
 
 #ifdef USE_SIGNAL
@@ -747,14 +677,6 @@ void StartListenTask(void const * argument)
 #endif
 	}
   /* USER CODE END StartListenTask */
-}
-
-/* Callback01 function */
-void Callback01(void const * argument)
-{
-  /* USER CODE BEGIN Callback01 */
-
-  /* USER CODE END Callback01 */
 }
 
  /**

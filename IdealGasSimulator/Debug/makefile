@@ -32,34 +32,34 @@ endif
 
 -include ../makefile.defs
 
-BUILD_ARTIFACT_NAME := Lab4
+BUILD_ARTIFACT_NAME := IdealGasSimulator
 BUILD_ARTIFACT_EXTENSION := elf
 BUILD_ARTIFACT_PREFIX := 
 BUILD_ARTIFACT := $(BUILD_ARTIFACT_PREFIX)$(BUILD_ARTIFACT_NAME).$(BUILD_ARTIFACT_EXTENSION)
 
 # Add inputs and outputs from these tool invocations to the build variables 
 EXECUTABLES += \
-Lab4.elf \
+IdealGasSimulator.elf \
 
 SIZE_OUTPUT += \
 default.size.stdout \
 
 OBJDUMP_LIST += \
-Lab4.list \
+IdealGasSimulator.list \
 
 OBJCOPY_BIN += \
-Lab4.bin \
+IdealGasSimulator.bin \
 
 
 # All Target
 all: main-build
 
 # Main-build Target
-main-build: Lab4.elf secondary-outputs
+main-build: IdealGasSimulator.elf secondary-outputs
 
 # Tool invocations
-Lab4.elf: $(OBJS) $(USER_OBJS) D:\202101\ECSE444\Lab4_Part2\Lab4\STM32L4S5VITX_FLASH.ld
-	arm-none-eabi-gcc -o "Lab4.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"D:\202101\ECSE444\Lab4_Part2\Lab4\STM32L4S5VITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="Lab4.map" -Wl,--gc-sections -static -L"D:\202101\ECSE444\Lab4_Part2\Lab4\Lib" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
+IdealGasSimulator.elf: $(OBJS) $(USER_OBJS) D:\202101\ECSE444\IdealGasSimulator\IdealGasSimulator\STM32L4S5VITX_FLASH.ld
+	arm-none-eabi-gcc -o "IdealGasSimulator.elf" @"objects.list" $(USER_OBJS) $(LIBS) -mcpu=cortex-m4 -T"D:\202101\ECSE444\IdealGasSimulator\IdealGasSimulator\STM32L4S5VITX_FLASH.ld" --specs=nosys.specs -Wl,-Map="IdealGasSimulator.map" -Wl,--gc-sections -static -L"D:\202101\ECSE444\IdealGasSimulator\IdealGasSimulator\Lib" --specs=nano.specs -mfpu=fpv4-sp-d16 -mfloat-abi=hard -mthumb -Wl,--start-group -lc -lm -Wl,--end-group
 	@echo 'Finished building target: $@'
 	@echo ' '
 
@@ -68,13 +68,13 @@ default.size.stdout: $(EXECUTABLES)
 	@echo 'Finished building: $@'
 	@echo ' '
 
-Lab4.list: $(EXECUTABLES)
-	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "Lab4.list"
+IdealGasSimulator.list: $(EXECUTABLES)
+	arm-none-eabi-objdump -h -S $(EXECUTABLES) > "IdealGasSimulator.list"
 	@echo 'Finished building: $@'
 	@echo ' '
 
-Lab4.bin: $(EXECUTABLES)
-	arm-none-eabi-objcopy  -O binary $(EXECUTABLES) "Lab4.bin"
+IdealGasSimulator.bin: $(EXECUTABLES)
+	arm-none-eabi-objcopy  -O binary $(EXECUTABLES) "IdealGasSimulator.bin"
 	@echo 'Finished building: $@'
 	@echo ' '
 

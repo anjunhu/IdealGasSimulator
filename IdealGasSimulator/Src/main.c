@@ -38,7 +38,7 @@
 
 /* Private typedef -----------------------------------------------------------*/
 /* USER CODE BEGIN PTD */
-
+#define ITM_Port32(n) (*((volatile unsigned long *) (0xE0000000+4*n)))
 /* USER CODE END PTD */
 
 /* Private define ------------------------------------------------------------*/
@@ -47,7 +47,7 @@
 
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
-
+#define MAX_12 4095
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -65,6 +65,7 @@ UART_HandleTypeDef huart1;
 osThreadId measureHandle;
 osThreadId transmitHandle;
 osThreadId listenHandle;
+osTimerId SoundEffectTimerHandle;
 osMutexId consoleMutexHandle;
 /* USER CODE BEGIN PV */
 
@@ -82,6 +83,7 @@ static void MX_DAC1_Init(void);
 void StartMeasureTask(void const * argument);
 void StartTransmitTask(void const * argument);
 void StartListenTask(void const * argument);
+void CallbackSoundEffectTimer(void const * argument);
 
 /* USER CODE BEGIN PFP */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
@@ -95,7 +97,12 @@ int16_t acceleration[3];
 float gyro[3];
 float pressure;
 float temperature;
-int mode = 0;
+uint8_t mode = 0;
+uint8_t chordUpdate = 0;
+uint16_t sin_lookup_chord[180]; // lcm(45, 36, 30)
+uint16_t sin_lookup_C6[180]; // 1046.5 Hz, sample rate = 48kHz
+uint16_t sin_lookup_E6[180]; // 1318.51 Hz,
+uint16_t sin_lookup_G6[180]; // 1567.98 Hz,
 /* USER CODE END 0 */
 
 /**
@@ -105,7 +112,23 @@ int mode = 0;
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-
+	int lookup_len = sizeof(sin_lookup_C6) / sizeof(sin_lookup_C6[0]);
+	for (int i = 0; i < lookup_len; i++) {
+		sin_lookup_C6[i] = (MAX_12 * 0.6 * (arm_sin_f32(6.283 * i / 45) + 1));
+	}
+	lookup_len = sizeof(sin_lookup_E6) / sizeof(sin_lookup_E6[0]);
+	for (int i = 0; i < lookup_len; i++) {
+		sin_lookup_E6[i] = (MAX_12 * 0.6 * (arm_sin_f32(6.283 * i / 36) + 1));
+	}
+	lookup_len = sizeof(sin_lookup_G6) / sizeof(sin_lookup_G6[0]);
+	for (int i = 0; i < lookup_len; i++) {
+		sin_lookup_G6[i] = (MAX_12 * 0.6 * (arm_sin_f32(6.283 * i / 30) + 1));
+	}
+	lookup_len = sizeof(sin_lookup_chord) / sizeof(sin_lookup_chord[0]);
+	for (int i = 0; i < lookup_len; i++) {
+		sin_lookup_chord[i] =
+				(MAX_12 * 0.6 * (arm_sin_f32(6.283 * i / 45) + 1));
+	}
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -135,12 +158,14 @@ int main(void)
   /* USER CODE BEGIN 2 */
 	// Initialize peripherals
 	BSP_ACCELERO_Init();
-	BSP_MAGNETO_Init();
 	BSP_GYRO_Init();
 	BSP_HSENSOR_Init();
 	BSP_PSENSOR_Init();
 	BSP_TSENSOR_Init();
-	HAL_TIM_Base_Start_IT(&htim2);
+	//HAL_TIM_Base_Start_IT(&htim2);
+	// Initialize Sound Effect Player
+	HAL_TIM_Base_Start(&htim2);
+
   /* USER CODE END 2 */
 
   /* Create the mutex(es) */
@@ -155,6 +180,11 @@ int main(void)
   /* USER CODE BEGIN RTOS_SEMAPHORES */
 	/* add semaphores, ... */
   /* USER CODE END RTOS_SEMAPHORES */
+
+  /* Create the timer(s) */
+  /* definition and creation of SoundEffectTimer */
+  osTimerDef(SoundEffectTimer, CallbackSoundEffectTimer);
+  SoundEffectTimerHandle = osTimerCreate(osTimer(SoundEffectTimer), osTimerPeriodic, &mode);
 
   /* USER CODE BEGIN RTOS_TIMERS */
 	/* start timers, add new ones, ... */
@@ -344,7 +374,7 @@ static void MX_DAC1_Init(void)
   /** DAC channel OUT1 config
   */
   sConfig.DAC_SampleAndHold = DAC_SAMPLEANDHOLD_DISABLE;
-  sConfig.DAC_Trigger = DAC_TRIGGER_NONE;
+  sConfig.DAC_Trigger = DAC_TRIGGER_T2_TRGO;
   sConfig.DAC_HighFrequency = DAC_HIGH_FREQUENCY_INTERFACE_MODE_DISABLE;
   sConfig.DAC_OutputBuffer = DAC_OUTPUTBUFFER_ENABLE;
   sConfig.DAC_ConnectOnChipPeripheral = DAC_CHIPCONNECT_DISABLE;
@@ -424,9 +454,9 @@ static void MX_TIM2_Init(void)
 
   /* USER CODE END TIM2_Init 1 */
   htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 12000;
+  htim2.Init.Prescaler = 0;
   htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 1000;
+  htim2.Init.Period = 2500;
   htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
@@ -438,7 +468,7 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
+  sMasterConfig.MasterOutputTrigger = TIM_TRGO_UPDATE;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
   {
@@ -563,13 +593,16 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) {// detect when the button is pressed
+void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) { // detect when the button is pressed
 	if (GPIO_Pin == USER_BUTTON_Pin) {
-		osSignalSet (listenHandle, 0x0002);
+		osSignalSet(listenHandle, 0x0002);
 		HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, GPIO_PIN_RESET);
 	}
 }
 
+void HAL_DAC_ConvHalfCpltCallbackCh1(DAC_HandleTypeDef *hdac){
+	ITM_Port32(31) = 11111;
+}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartMeasureTask */
@@ -586,22 +619,18 @@ void StartMeasureTask(void const * argument)
 	for (;;) {
 		osDelay(50);
 
-#ifdef USE_SIGNAL
-		if (osThreadSuspend(transmitHandle) != osOK){
-			Error_Handler();
-		}
-#else
-		osMutexWait (consoleMutexHandle, osWaitForever);
-#endif
+		osMutexWait(consoleMutexHandle, osWaitForever);
+
 		memset(buffer, 0, strlen(buffer));
 		BSP_ACCELERO_AccGetXYZ(acceleration);
 		BSP_GYRO_GetXYZ(gyro);
 		pressure = BSP_PSENSOR_ReadPressure();
 		temperature = BSP_TSENSOR_ReadTemp();
-		sprintf((char*) buffer, "Ac=[%d, %d, %d]\nAngAc=[%d, %d, %d]\nP=%d\nT=%d\n",
+		sprintf((char*) buffer,
+				"Ac=[%d, %d, %d]\nAngAc=[%d, %d, %d]\nP=%d\nT=%d\n",
 				(int) acceleration[0], (int) acceleration[1],
-				(int) acceleration[2], (int) (gyro[0]), (int) (gyro[1]), (int) (gyro[2]),
-				(int) pressure, (int) temperature);
+				(int) acceleration[2], (int) (gyro[0]), (int) (gyro[1]),
+				(int) (gyro[2]), (int) pressure, (int) temperature);
 
 		HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, GPIO_PIN_SET);
 
@@ -610,8 +639,8 @@ void StartMeasureTask(void const * argument)
 		//			Error_Handler();
 		//		}
 #else
-		osSignalSet (transmitHandle, 0x0001);
-		osMutexRelease (consoleMutexHandle);
+		osSignalSet(transmitHandle, 0x0001);
+		osMutexRelease(consoleMutexHandle);
 #endif
 
 	}
@@ -632,21 +661,12 @@ void StartTransmitTask(void const * argument)
 	for (;;) {
 		osDelay(10);
 
-#ifdef USE_SIGNAL
-#else
-		osSignalWait (0x0001, osWaitForever);
-		osMutexWait (consoleMutexHandle, osWaitForever);
-#endif
+		osSignalWait(0x0001, osWaitForever);
+		osMutexWait(consoleMutexHandle, osWaitForever);
+
 		HAL_UART_Transmit(&huart1, buffer, strlen(buffer), 5);
 
-#ifdef USE_SIGNAL
-		//osSignalClear(transmitHandle, 0x0001);
-		if (osThreadSuspend(transmitHandle) != osOK){
-					Error_Handler();
-				}
-#else
-		osMutexRelease (consoleMutexHandle);
-#endif
+		osMutexRelease(consoleMutexHandle);
 
 
 	}
@@ -666,17 +686,39 @@ void StartListenTask(void const * argument)
 	/* Infinite loop */
 	for (;;) {
 		osDelay(500);
-		osSignalWait (0x0002, osWaitForever);
-#ifndef USE_SIGNAL
-		//osMutexWait (consoleMutexHandle, osWaitForever);
-#endif
-		mode = (mode + 1) % 4;
-//		osSignalSet (measureHandle, 0x0003);
-#ifndef USE_SIGNAL
-		//osMutexRelease (consoleMutexHandle);
-#endif
+		//osSignalWait(0x0002, osWaitForever);
+		osMutexWait(consoleMutexHandle, osWaitForever);
+		HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, sin_lookup_chord, 180, DAC_ALIGN_12B_R);
+		osTimerStart (SoundEffectTimerHandle, 250);
+		osMutexRelease(consoleMutexHandle);
 	}
   /* USER CODE END StartListenTask */
+}
+
+/* CallbackSoundEffectTimer function */
+void CallbackSoundEffectTimer(void const * argument)
+{
+  /* USER CODE BEGIN CallbackSoundEffectTimer */
+	switch(mode) {
+	case 0:
+		memcpy(sin_lookup_chord, sin_lookup_C6, sizeof(sin_lookup_chord));
+		mode += 1;
+		break;
+	case 1:
+		memcpy(sin_lookup_chord, sin_lookup_E6, sizeof(sin_lookup_chord));
+		mode += 1;
+		break;
+	case 2:
+		memcpy(sin_lookup_chord, sin_lookup_G6, sizeof(sin_lookup_chord));
+		mode += 1;
+	default:
+		HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_1);
+		osTimerStop (SoundEffectTimerHandle);
+		mode = 0;
+
+	}
+
+  /* USER CODE END CallbackSoundEffectTimer */
 }
 
  /**
@@ -690,9 +732,7 @@ void StartListenTask(void const * argument)
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 {
   /* USER CODE BEGIN Callback 0 */
-	if (htim->Instance == TIM2) {
-		HAL_GPIO_TogglePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin);
-	  }
+
   /* USER CODE END Callback 0 */
   if (htim->Instance == TIM6) {
     HAL_IncTick();

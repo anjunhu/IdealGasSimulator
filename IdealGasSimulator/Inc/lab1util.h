@@ -18,4 +18,12 @@ struct KalmanState{
 
 extern int kalmanFilterA (float* InputArray, float* OutputArray, struct KalmanState* kstate, int length);
 
+void leftRotateOne(float* InputArray, int length)
+{
+    int temp = InputArray[0], i;
+    for (i = 0; i < length - 1; i++)
+        InputArray[i] = InputArray[i + 1];
+    InputArray[n-1] = temp;
+}
+
 #endif /* INC_LAB1UTIL_H_ */

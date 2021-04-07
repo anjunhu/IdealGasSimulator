@@ -1,0 +1,42 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<section name="Workbench">
+	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
+		<item key="selection" value="HAL_DAC"/>
+		<item key="wrap" value="true"/>
+		<item key="casesensitive" value="false"/>
+		<item key="wholeword" value="false"/>
+		<item key="incremental" value="false"/>
+		<item key="isRegEx" value="false"/>
+		<list key="findhistory">
+			<item value="HAL_DAC"/>
+			<item value="DAC1"/>
+			<item value="MX_DMA_Init"/>
+			<item value="htim2"/>
+			<item value="ptd"/>
+			<item value="dma"/>
+			<item value="ostimer"/>
+			<item value="start"/>
+			<item value="0x0002"/>
+			<item value="MX_DAC1_Init"/>
+			<item value="trigger"/>
+			<item value="pm"/>
+			<item value="TimerId"/>
+			<item value="osTimerId"/>
+			<item value="osTimerCreate"/>
+		</list>
+		<list key="replacehistory">
+			<item value="gyro"/>
+			<item value="acceleration"/>
+			<item value="magneto"/>
+			<item value="strlen(buffer)"/>
+			<item value="mode"/>
+		</list>
+	</section>
+	<section name="org.eclipse.ui.texteditor.FindReplaceDialog_dialogBounds">
+		<item key="DIALOG_X_ORIGIN" value="1641"/>
+		<item key="DIALOG_Y_ORIGIN" value="518"/>
+		<item key="DIALOG_WIDTH" value="284"/>
+		<item key="DIALOG_HEIGHT" value="391"/>
+		<item key="DIALOG_FONT_NAME" value="1|Segoe UI|9.0|0|WINDOWS|1|-12|0|0|0|400|0|0|0|1|0|0|0|0|Segoe UI"/>
+	</section>
+</section>

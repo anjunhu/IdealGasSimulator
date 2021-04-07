@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;IdealGasSimulator/Src/kalmanUpdateA.s&apos; to &apos;kalmanFilterA.s&apos;" description="Rename resource &apos;kalmanUpdateA.s&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="Src/kalmanUpdateA.s" name="kalmanFilterA.s" stamp="1617470083839" updateReferences="true"/>
+</session>

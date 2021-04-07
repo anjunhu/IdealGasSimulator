@@ -98,7 +98,6 @@ int16_t acceleration[3];
 float gyro[3];
 float pressure;
 float temperature;
-float temp_sequence[10];
 uint8_t note = 0;
 int8_t ringtone = -1;
 uint8_t chordUpdate = 0;

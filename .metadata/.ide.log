@@ -1,0 +1,6 @@
+2021-03-21 22:00:53,861 [INFO] Activator:170 - 
+
+
+2021-03-21 22:00:53,865 [INFO] Activator:171 - !SESSION log4j initialized
+2021-03-21 22:01:42,056 [INFO] RetryExec:97 - I/O exception (org.apache.http.NoHttpResponseException) caught when processing request to {}->http://sw-center.st.com:80: The target server failed to respond
+2021-03-21 22:01:42,059 [INFO] RetryExec:113 - Retrying request to {}->http://sw-center.st.com:80

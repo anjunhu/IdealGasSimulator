@@ -48,6 +48,7 @@
 /* Private macro -------------------------------------------------------------*/
 /* USER CODE BEGIN PM */
 #define MAX_12 4095
+#define LOOKUP_LEN 180
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
@@ -92,12 +93,14 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-uint8_t buffer[100];
+uint8_t buffer[150];
 int16_t acceleration[3];
 float gyro[3];
 float pressure;
 float temperature;
-uint8_t mode = 0;
+float temp_sequence[10];
+uint8_t note = 0;
+int8_t ringtone = -1;
 uint8_t chordUpdate = 0;
 uint16_t sin_lookup_chord[180]; // lcm(45, 36, 30)
 uint16_t sin_lookup_C6[180]; // 1046.5 Hz, sample rate = 48kHz
@@ -112,23 +115,16 @@ uint16_t sin_lookup_G6[180]; // 1567.98 Hz,
 int main(void)
 {
   /* USER CODE BEGIN 1 */
-	int lookup_len = sizeof(sin_lookup_C6) / sizeof(sin_lookup_C6[0]);
-	for (int i = 0; i < lookup_len; i++) {
+	for (int i = 0; i < LOOKUP_LEN; i++) {
 		sin_lookup_C6[i] = (MAX_12 * 0.6 * (arm_sin_f32(6.283 * i / 45) + 1));
 	}
-	lookup_len = sizeof(sin_lookup_E6) / sizeof(sin_lookup_E6[0]);
-	for (int i = 0; i < lookup_len; i++) {
+	for (int i = 0; i < LOOKUP_LEN; i++) {
 		sin_lookup_E6[i] = (MAX_12 * 0.6 * (arm_sin_f32(6.283 * i / 36) + 1));
 	}
-	lookup_len = sizeof(sin_lookup_G6) / sizeof(sin_lookup_G6[0]);
-	for (int i = 0; i < lookup_len; i++) {
+	for (int i = 0; i < LOOKUP_LEN; i++) {
 		sin_lookup_G6[i] = (MAX_12 * 0.6 * (arm_sin_f32(6.283 * i / 30) + 1));
 	}
-	lookup_len = sizeof(sin_lookup_chord) / sizeof(sin_lookup_chord[0]);
-	for (int i = 0; i < lookup_len; i++) {
-		sin_lookup_chord[i] =
-				(MAX_12 * 0.6 * (arm_sin_f32(6.283 * i / 45) + 1));
-	}
+	memset(sin_lookup_chord, 0, sizeof(sin_lookup_chord));
   /* USER CODE END 1 */
 
   /* MCU Configuration--------------------------------------------------------*/
@@ -184,7 +180,7 @@ int main(void)
   /* Create the timer(s) */
   /* definition and creation of SoundEffectTimer */
   osTimerDef(SoundEffectTimer, CallbackSoundEffectTimer);
-  SoundEffectTimerHandle = osTimerCreate(osTimer(SoundEffectTimer), osTimerPeriodic, &mode);
+  SoundEffectTimerHandle = osTimerCreate(osTimer(SoundEffectTimer), osTimerPeriodic, &note);
 
   /* USER CODE BEGIN RTOS_TIMERS */
 	/* start timers, add new ones, ... */
@@ -623,7 +619,8 @@ void StartMeasureTask(void const * argument)
 
 		memset(buffer, 0, strlen(buffer));
 		BSP_ACCELERO_AccGetXYZ(acceleration);
-		BSP_GYRO_GetXYZ(gyro);
+		acceleration[2] = acceleration[2]-1000; // unit:mg
+		BSP_GYRO_GetXYZ(gyro); // unit:mdps
 		pressure = BSP_PSENSOR_ReadPressure();
 		temperature = BSP_TSENSOR_ReadTemp();
 		sprintf((char*) buffer,
@@ -632,16 +629,17 @@ void StartMeasureTask(void const * argument)
 				(int) acceleration[2], (int) (gyro[0]), (int) (gyro[1]),
 				(int) (gyro[2]), (int) pressure, (int) temperature);
 
-		HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, GPIO_PIN_SET);
+		//HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, GPIO_PIN_SET);
 
-#ifdef USE_SIGNAL
-		//		if (osThreadResume(transmitHandle) != osOK){
-		//			Error_Handler();
-		//		}
-#else
+		if (abs(acceleration[0])> 800 || abs(acceleration[1]) > 800){
+			ringtone = 1;
+		}
+		else{
+			ringtone = -1;
+		}
+
 		osSignalSet(transmitHandle, 0x0001);
 		osMutexRelease(consoleMutexHandle);
-#endif
 
 	}
   /* USER CODE END 5 */
@@ -689,7 +687,10 @@ void StartListenTask(void const * argument)
 		//osSignalWait(0x0002, osWaitForever);
 		osMutexWait(consoleMutexHandle, osWaitForever);
 		HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, sin_lookup_chord, 180, DAC_ALIGN_12B_R);
-		osTimerStart (SoundEffectTimerHandle, 250);
+		if (ringtone>=0){
+			osTimerStart (SoundEffectTimerHandle, 250);
+		}
+
 		osMutexRelease(consoleMutexHandle);
 	}
   /* USER CODE END StartListenTask */
@@ -699,22 +700,25 @@ void StartListenTask(void const * argument)
 void CallbackSoundEffectTimer(void const * argument)
 {
   /* USER CODE BEGIN CallbackSoundEffectTimer */
-	switch(mode) {
+	switch(note) {
 	case 0:
 		memcpy(sin_lookup_chord, sin_lookup_C6, sizeof(sin_lookup_chord));
-		mode += 1;
+		note += 1;
 		break;
 	case 1:
 		memcpy(sin_lookup_chord, sin_lookup_E6, sizeof(sin_lookup_chord));
-		mode += 1;
+		note += 1;
 		break;
 	case 2:
 		memcpy(sin_lookup_chord, sin_lookup_G6, sizeof(sin_lookup_chord));
-		mode += 1;
+		note += 1;
+		break;
 	default:
+		note = ringtone;
+		memset(sin_lookup_chord, 0, sizeof(sin_lookup_chord));
 		HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_1);
 		osTimerStop (SoundEffectTimerHandle);
-		mode = 0;
+
 
 	}
 

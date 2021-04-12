@@ -23,9 +23,7 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include "lab1util.h"
 #include "arm_math.h"
-#include "stm32l4s5i_iot01_accelero.h"
 #include "stm32l4s5i_iot01_gyro.h"
 #include "stm32l4s5i_iot01_hsensor.h"
 #include "stm32l4s5i_iot01_nfctag.h"
@@ -34,6 +32,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <math.h>
+#include <physics.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -52,8 +51,6 @@
 /* USER CODE END PM */
 
 /* Private variables ---------------------------------------------------------*/
-ADC_HandleTypeDef hadc1;
-
 DAC_HandleTypeDef hdac1;
 DMA_HandleTypeDef hdma_dac1_ch1;
 
@@ -67,7 +64,7 @@ osThreadId measureHandle;
 osThreadId transmitHandle;
 osThreadId listenHandle;
 osTimerId SoundEffectTimerHandle;
-osMutexId consoleMutexHandle;
+osMutexId dataMutexHandle;
 /* USER CODE BEGIN PV */
 
 /* USER CODE END PV */
@@ -79,7 +76,6 @@ static void MX_DMA_Init(void);
 static void MX_I2C2_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM2_Init(void);
-static void MX_ADC1_Init(void);
 static void MX_DAC1_Init(void);
 void StartMeasureTask(void const * argument);
 void StartTransmitTask(void const * argument);
@@ -94,17 +90,31 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim);
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 uint8_t buffer[150];
-int16_t acceleration[3];
 float gyro[3];
 float pressure;
 float temperature;
+float work;
 uint8_t note = 0;
 int8_t ringtone = -1;
 uint8_t chordUpdate = 0;
 uint16_t sin_lookup_chord[180]; // lcm(45, 36, 30)
 uint16_t sin_lookup_C6[180]; // 1046.5 Hz, sample rate = 48kHz
-uint16_t sin_lookup_E6[180]; // 1318.51 Hz,
-uint16_t sin_lookup_G6[180]; // 1567.98 Hz,
+uint16_t sin_lookup_E6[180]; // 1318.51 Hz
+uint16_t sin_lookup_G6[180]; // 1567.98 Hz
+struct KalmanState ksTemp = {
+ 		  .q = 0.1,
+ 		  .r = 0.9,
+ 		  .x = 25,
+ 		  .p = 0.1,
+ 		  .k = 0.0
+ };
+struct KalmanState ksWork = {
+ 		  .q = 0.1,
+ 		  .r = 0.9,
+ 		  .x = 0,
+ 		  .p = 0.1,
+ 		  .k = 0.0
+ };
 /* USER CODE END 0 */
 
 /**
@@ -148,25 +158,21 @@ int main(void)
   MX_I2C2_Init();
   MX_USART1_UART_Init();
   MX_TIM2_Init();
-  MX_ADC1_Init();
   MX_DAC1_Init();
   /* USER CODE BEGIN 2 */
-	// Initialize peripherals
-	BSP_ACCELERO_Init();
+	// Initialize individual sensors
 	BSP_GYRO_Init();
-	BSP_HSENSOR_Init();
-	BSP_PSENSOR_Init();
 	BSP_TSENSOR_Init();
-	//HAL_TIM_Base_Start_IT(&htim2);
+	BSP_PSENSOR_Init();
 	// Initialize Sound Effect Player
 	HAL_TIM_Base_Start(&htim2);
 
   /* USER CODE END 2 */
 
   /* Create the mutex(es) */
-  /* definition and creation of consoleMutex */
-  osMutexDef(consoleMutex);
-  consoleMutexHandle = osMutexCreate(osMutex(consoleMutex));
+  /* definition and creation of dataMutex */
+  osMutexDef(dataMutex);
+  dataMutexHandle = osMutexCreate(osMutex(dataMutex));
 
   /* USER CODE BEGIN RTOS_MUTEX */
 	/* add mutexes, ... */
@@ -179,7 +185,7 @@ int main(void)
   /* Create the timer(s) */
   /* definition and creation of SoundEffectTimer */
   osTimerDef(SoundEffectTimer, CallbackSoundEffectTimer);
-  SoundEffectTimerHandle = osTimerCreate(osTimer(SoundEffectTimer), osTimerPeriodic, &note);
+  SoundEffectTimerHandle = osTimerCreate(osTimer(SoundEffectTimer), osTimerPeriodic, NULL);
 
   /* USER CODE BEGIN RTOS_TIMERS */
 	/* start timers, add new ones, ... */
@@ -268,78 +274,13 @@ void SystemClock_Config(void)
   {
     Error_Handler();
   }
-  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_I2C2
-                              |RCC_PERIPHCLK_ADC;
+  PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_I2C2;
   PeriphClkInit.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
   PeriphClkInit.I2c2ClockSelection = RCC_I2C2CLKSOURCE_PCLK1;
-  PeriphClkInit.AdcClockSelection = RCC_ADCCLKSOURCE_PLLSAI1;
-  PeriphClkInit.PLLSAI1.PLLSAI1Source = RCC_PLLSOURCE_MSI;
-  PeriphClkInit.PLLSAI1.PLLSAI1M = 1;
-  PeriphClkInit.PLLSAI1.PLLSAI1N = 24;
-  PeriphClkInit.PLLSAI1.PLLSAI1P = RCC_PLLP_DIV2;
-  PeriphClkInit.PLLSAI1.PLLSAI1Q = RCC_PLLQ_DIV2;
-  PeriphClkInit.PLLSAI1.PLLSAI1R = RCC_PLLR_DIV2;
-  PeriphClkInit.PLLSAI1.PLLSAI1ClockOut = RCC_PLLSAI1_ADC1CLK;
   if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
   {
     Error_Handler();
   }
-}
-
-/**
-  * @brief ADC1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_ADC1_Init(void)
-{
-
-  /* USER CODE BEGIN ADC1_Init 0 */
-
-  /* USER CODE END ADC1_Init 0 */
-
-  ADC_ChannelConfTypeDef sConfig = {0};
-
-  /* USER CODE BEGIN ADC1_Init 1 */
-
-  /* USER CODE END ADC1_Init 1 */
-  /** Common config
-  */
-  hadc1.Instance = ADC1;
-  hadc1.Init.ClockPrescaler = ADC_CLOCK_ASYNC_DIV1;
-  hadc1.Init.Resolution = ADC_RESOLUTION_12B;
-  hadc1.Init.DataAlign = ADC_DATAALIGN_RIGHT;
-  hadc1.Init.ScanConvMode = ADC_SCAN_DISABLE;
-  hadc1.Init.EOCSelection = ADC_EOC_SINGLE_CONV;
-  hadc1.Init.LowPowerAutoWait = DISABLE;
-  hadc1.Init.ContinuousConvMode = DISABLE;
-  hadc1.Init.NbrOfConversion = 1;
-  hadc1.Init.DiscontinuousConvMode = DISABLE;
-  hadc1.Init.ExternalTrigConv = ADC_SOFTWARE_START;
-  hadc1.Init.ExternalTrigConvEdge = ADC_EXTERNALTRIGCONVEDGE_NONE;
-  hadc1.Init.DMAContinuousRequests = DISABLE;
-  hadc1.Init.Overrun = ADC_OVR_DATA_PRESERVED;
-  hadc1.Init.OversamplingMode = DISABLE;
-  if (HAL_ADC_Init(&hadc1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /** Configure Regular Channel
-  */
-  sConfig.Channel = ADC_CHANNEL_1;
-  sConfig.Rank = ADC_REGULAR_RANK_1;
-  sConfig.SamplingTime = ADC_SAMPLETIME_2CYCLES_5;
-  sConfig.SingleDiff = ADC_SINGLE_ENDED;
-  sConfig.OffsetNumber = ADC_OFFSET_NONE;
-  sConfig.Offset = 0;
-  if (HAL_ADC_ConfigChannel(&hadc1, &sConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN ADC1_Init 2 */
-
-  /* USER CODE END ADC1_Init 2 */
-
 }
 
 /**
@@ -588,16 +529,7 @@ static void MX_GPIO_Init(void)
 }
 
 /* USER CODE BEGIN 4 */
-void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin) { // detect when the button is pressed
-	if (GPIO_Pin == USER_BUTTON_Pin) {
-		osSignalSet(listenHandle, 0x0002);
-		HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, GPIO_PIN_RESET);
-	}
-}
 
-void HAL_DAC_ConvHalfCpltCallbackCh1(DAC_HandleTypeDef *hdac){
-	ITM_Port32(31) = 11111;
-}
 /* USER CODE END 4 */
 
 /* USER CODE BEGIN Header_StartMeasureTask */
@@ -614,31 +546,34 @@ void StartMeasureTask(void const * argument)
 	for (;;) {
 		osDelay(50);
 
-		osMutexWait(consoleMutexHandle, osWaitForever);
+		osMutexWait(dataMutexHandle, osWaitForever);
 
 		memset(buffer, 0, strlen(buffer));
-		BSP_ACCELERO_AccGetXYZ(acceleration);
-		acceleration[2] = acceleration[2]-1000; // unit:mg
 		BSP_GYRO_GetXYZ(gyro); // unit:mdps
 		pressure = BSP_PSENSOR_ReadPressure();
-		temperature = BSP_TSENSOR_ReadTemp();
+		temperature = kalmanFilterA(&ksTemp, BSP_TSENSOR_ReadTemp());
+		work = kalmanFilterA(&ksWork, gyro2work (gyro));
 		sprintf((char*) buffer,
-				"Ac=[%d, %d, %d]\nAngAc=[%d, %d, %d]\nP=%d\nT=%d\n",
-				(int) acceleration[0], (int) acceleration[1],
-				(int) acceleration[2], (int) (gyro[0]), (int) (gyro[1]),
-				(int) (gyro[2]), (int) pressure, (int) temperature);
+				"AngAc=[%d, %d, %d]\nP=%d\nT=%d\nW=%d\n",
+				(int) (gyro[0]), (int) (gyro[1]), (int) (gyro[2]),
+				(int) pressure, (int) temperature, (int) work);
 
-		//HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, GPIO_PIN_SET);
-
-		if (abs(acceleration[0])> 800 || abs(acceleration[1]) > 800){
-			ringtone = 1;
-		}
-		else{
+		if (work>10) {
+			ringtone = 0;
+			HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, GPIO_PIN_SET);
+		} else {
 			ringtone = -1;
+			HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, GPIO_PIN_RESET);
 		}
+
+		if (temperature>35) {
+				HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, GPIO_PIN_RESET);
+			} else {
+				HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, GPIO_PIN_SET);
+			}
 
 		osSignalSet(transmitHandle, 0x0001);
-		osMutexRelease(consoleMutexHandle);
+		osMutexRelease(dataMutexHandle);
 
 	}
   /* USER CODE END 5 */
@@ -659,12 +594,11 @@ void StartTransmitTask(void const * argument)
 		osDelay(10);
 
 		osSignalWait(0x0001, osWaitForever);
-		osMutexWait(consoleMutexHandle, osWaitForever);
+		osMutexWait(dataMutexHandle, osWaitForever);
 
 		HAL_UART_Transmit(&huart1, buffer, strlen(buffer), 5);
 
-		osMutexRelease(consoleMutexHandle);
-
+		osMutexRelease(dataMutexHandle);
 
 	}
   /* USER CODE END StartTransmitTask */
@@ -684,13 +618,14 @@ void StartListenTask(void const * argument)
 	for (;;) {
 		osDelay(500);
 		//osSignalWait(0x0002, osWaitForever);
-		osMutexWait(consoleMutexHandle, osWaitForever);
-		HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, sin_lookup_chord, 180, DAC_ALIGN_12B_R);
-		if (ringtone>=0){
-			osTimerStart (SoundEffectTimerHandle, 250);
+		osMutexWait(dataMutexHandle, osWaitForever);
+		HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, sin_lookup_chord, 180,
+				DAC_ALIGN_12B_R);
+		if (ringtone >= 0) {
+			osTimerStart(SoundEffectTimerHandle, 250);
 		}
 
-		osMutexRelease(consoleMutexHandle);
+		osMutexRelease(dataMutexHandle);
 	}
   /* USER CODE END StartListenTask */
 }
@@ -699,7 +634,7 @@ void StartListenTask(void const * argument)
 void CallbackSoundEffectTimer(void const * argument)
 {
   /* USER CODE BEGIN CallbackSoundEffectTimer */
-	switch(note) {
+	switch (note) {
 	case 0:
 		memcpy(sin_lookup_chord, sin_lookup_C6, sizeof(sin_lookup_chord));
 		note += 1;
@@ -716,8 +651,7 @@ void CallbackSoundEffectTimer(void const * argument)
 		note = ringtone;
 		memset(sin_lookup_chord, 0, sizeof(sin_lookup_chord));
 		HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_1);
-		osTimerStop (SoundEffectTimerHandle);
-
+		osTimerStop(SoundEffectTimerHandle);
 
 	}
 

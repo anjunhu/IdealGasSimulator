@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<session version="1.0">
+<refactoring comment="Rename resource &apos;IdealGasSimulator/Inc/lab1util.h&apos; to &apos;physics.h&apos;" description="Rename resource &apos;lab1util.h&apos;" flags="7" id="org.eclipse.ltk.core.refactoring.rename.resource" input="Inc/lab1util.h" name="physics.h" stamp="1618231887736" updateReferences="true"/>
+</session>

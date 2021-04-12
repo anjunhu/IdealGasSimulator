@@ -1,30 +1,33 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <section name="Workbench">
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog">
-		<item key="selection" value="HAL_DAC"/>
+		<item key="selection" value=""/>
 		<item key="wrap" value="true"/>
-		<item key="casesensitive" value="false"/>
+		<item key="casesensitive" value="true"/>
 		<item key="wholeword" value="false"/>
 		<item key="incremental" value="false"/>
 		<item key="isRegEx" value="false"/>
 		<list key="findhistory">
-			<item value="HAL_DAC"/>
-			<item value="DAC1"/>
-			<item value="MX_DMA_Init"/>
-			<item value="htim2"/>
-			<item value="ptd"/>
-			<item value="dma"/>
-			<item value="ostimer"/>
-			<item value="start"/>
-			<item value="0x0002"/>
-			<item value="MX_DAC1_Init"/>
-			<item value="trigger"/>
-			<item value="pm"/>
-			<item value="TimerId"/>
-			<item value="osTimerId"/>
-			<item value="osTimerCreate"/>
+			<item value="cali"/>
+			<item value="work&gt;"/>
+			<item value="acc"/>
+			<item value="RED_LED_Pin"/>
+			<item value="consoleMutex"/>
+			<item value="dataM"/>
+			<item value="adc"/>
+			<item value="calib"/>
+			<item value="arr"/>
+			<item value="md"/>
+			<item value="800"/>
+			<item value="500"/>
+			<item value="t_prev"/>
+			<item value="0.1"/>
+			<item value="0.2"/>
 		</list>
 		<list key="replacehistory">
+			<item value="dataMutex"/>
+			<item value="InputArray"/>
+			<item value="note"/>
 			<item value="gyro"/>
 			<item value="acceleration"/>
 			<item value="magneto"/>
@@ -33,7 +36,7 @@
 		</list>
 	</section>
 	<section name="org.eclipse.ui.texteditor.FindReplaceDialog_dialogBounds">
-		<item key="DIALOG_X_ORIGIN" value="1641"/>
+		<item key="DIALOG_X_ORIGIN" value="1275"/>
 		<item key="DIALOG_Y_ORIGIN" value="518"/>
 		<item key="DIALOG_WIDTH" value="284"/>
 		<item key="DIALOG_HEIGHT" value="391"/>

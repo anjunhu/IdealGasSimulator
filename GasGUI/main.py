@@ -4,16 +4,17 @@ import serial
 import numpy as np
 
 WIDTH = 500
-HEIGHT = 250
+HEIGHT = 500
 GRANULARITY = 10
+IDEAL_GAS_CONST = 8.31446261815324
 
 class Ball:
 
     def __init__(self):
         self.xpos = random.randint(0, WIDTH)
         self.ypos = random.randint(0, HEIGHT)
-        self.xspeed = random.random() - 0.5
-        self.yspeed = random.random() - 0.5
+        self.vx = random.random() - 0.5
+        self.vy = random.random() - 0.5
 
 
 class MyCanvas(Canvas):
@@ -27,6 +28,7 @@ class MyCanvas(Canvas):
         self.bs = []      # keeps track of Ball objects representation on the Canvas
         self.work = 0
         self.temp = 25
+        self.pres = 1013
         for _ in range(20):
             ball = Ball()
             self.balls.append(ball)
@@ -35,34 +37,38 @@ class MyCanvas(Canvas):
 
     def run(self):
         try:
-            self.temp, self.work = read_sensors()
-            info = "T = {} K   Internal Energy = {:.2f} W   External Work = {:.2f}W".format(self.temp + 273,
-                                                                                            8.31446261815324 * 1.5 * self.temp,
-                                                                                            self.work)
+            self.temp, self.work, self.pres = read_sensors()
+            info = "T = {} K   P = {} mbar   Internal Energy = {:.2f} W   " \
+                   "External Work = {} mW".format(self.temp + 273, self.pres,
+                                                IDEAL_GAS_CONST * 1.5 * self.temp,
+                                                int(self.work))
             self.label.config(text=info)
         except ValueError:
             pass
 
         for b, ball in zip(self.bs, self.balls):
             # print(self.temp, self.work)
-            self.move(b, ball.xspeed, ball.yspeed)
+            self.move(b, ball.vx, ball.vy)
             pos = self.coords(b)
             if pos[3] >= HEIGHT or pos[1] <= 0:
-                ball.yspeed = - ball.yspeed
+                ball.vy = - ball.vy
             if pos[2] >= WIDTH or pos[0] <= 0:
-                ball.xspeed = - ball.xspeed
-            ball.yspeed = np.sign(ball.yspeed) * max(0, (self.temp - 25) ** 2 * 0.01 + self.work * 0.05)
-            ball.xspeed = np.sign(ball.xspeed) * max(0, (self.temp - 25) ** 2 * 0.01 + self.work * 0.05)
+                ball.vx = - ball.vx
+            speed = (self.temp - 25) + self.work + random.random()
+            speed = abs(speed * 0.05)
+            ball.vy = np.sign(ball.vy) * speed
+            ball.vx = np.sign(ball.vx) * speed
 
         self.after(7, self.run)
 
 
 def read_sensors():
     line = ser.read(200).decode()
-    temp = int(line[1+line.index("=", line.find('T')):line.index("\n", line.find('T'))])
-    AngAc = line[2+line.index("=", line.find('AngAc')):line.index("]", line.find('AngAc'))].split(", ")
-    work = (abs(int(AngAc[0])) + abs(int(AngAc[1])) + abs(int(AngAc[2])))/2/3.14/1000
-    return temp, work
+    # AngAc = line[2+line.index("=", line.find('AngAc')):line.index("]", line.find('AngAc'))].split(", ")
+    temp = int(line[1 + line.index("=", line.find('T')):line.index("\n", line.find('T'))])
+    work = int(line[1 + line.index("=", line.find('W')):line.index("\n", line.find('W'))])
+    pres = int(line[1 + line.index("=", line.find('P')):line.index("\n", line.find('P'))])
+    return temp, work, pres
 
 
 

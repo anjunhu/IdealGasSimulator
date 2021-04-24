@@ -13,7 +13,7 @@ The aim of this project is to design and implement an Interactive Ideal Gas Simu
     - L4S51 gyrometer for rotation & moving sensing
     - LPS22HB for pressure sensing
     - HTS221 for temperature sensing
-* DAC output
+* DAC (digital to analog converter) output 
   - We will connect a speaker to the DAC output to play sound effects of compressing and remind users of temperature change.
   - In this project, we use a simple "sweep picking" of the C-major traid C6, E6, G6 with different frequencies. The calculation for construction of the three lookup arrays is similar with what we did in Lab3.
   - We use a DMA request for the DAC channel from memory to peripheral so that the DAC should repeatedly read from the array, starting over after each full-conversion.

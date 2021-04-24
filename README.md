@@ -7,6 +7,7 @@ The aim of this project is to design and implement an Interactive Ideal Gas Simu
 ## Features
 * ADC (analog to digital converter)\
 In this project, we will use the ADC to calculate the internal energy (Particle Kinetic Energy) of a box of gas from its internal temperature in Kelvins.\
+
 * I2C Sensor\
 
 * DAC output

@@ -63,7 +63,8 @@ UART_HandleTypeDef huart1;
 osThreadId measureHandle;
 osThreadId transmitHandle;
 osThreadId listenHandle;
-osTimerId SoundEffectTimerHandle;
+osTimerId WorkSoundEffectTimerHandle;
+osTimerId TempSoundEffectTimerHandle;
 osMutexId dataMutexHandle;
 /* USER CODE BEGIN PV */
 
@@ -80,7 +81,8 @@ static void MX_DAC1_Init(void);
 void StartMeasureTask(void const * argument);
 void StartTransmitTask(void const * argument);
 void StartListenTask(void const * argument);
-void CallbackSoundEffectTimer(void const * argument);
+void CallbackWorkSoundEffectTimer(void const * argument);
+void CallbackTempSoundEffectTimer(void const * argument);
 
 /* USER CODE BEGIN PFP */
 void HAL_GPIO_EXTI_Callback(uint16_t GPIO_Pin);
@@ -102,17 +104,17 @@ uint16_t sin_lookup_C6[180]; // 1046.5 Hz, sample rate = 48kHz
 uint16_t sin_lookup_E6[180]; // 1318.51 Hz
 uint16_t sin_lookup_G6[180]; // 1567.98 Hz
 struct KalmanState ksTemp = {
- 		  .q = 0.1,
- 		  .r = 0.9,
+ 		  .q = 0.01,
+ 		  .r = 1,
  		  .x = 25,
  		  .p = 0.1,
  		  .k = 0.0
  };
 struct KalmanState ksWork = {
- 		  .q = 0.1,
+ 		  .q = 0.01,
  		  .r = 0.9,
  		  .x = 0,
- 		  .p = 0.1,
+ 		  .p = 0.01,
  		  .k = 0.0
  };
 /* USER CODE END 0 */
@@ -183,9 +185,13 @@ int main(void)
   /* USER CODE END RTOS_SEMAPHORES */
 
   /* Create the timer(s) */
-  /* definition and creation of SoundEffectTimer */
-  osTimerDef(SoundEffectTimer, CallbackSoundEffectTimer);
-  SoundEffectTimerHandle = osTimerCreate(osTimer(SoundEffectTimer), osTimerPeriodic, NULL);
+  /* definition and creation of WorkSoundEffectTimer */
+  osTimerDef(WorkSoundEffectTimer, CallbackWorkSoundEffectTimer);
+  WorkSoundEffectTimerHandle = osTimerCreate(osTimer(WorkSoundEffectTimer), osTimerPeriodic, NULL);
+
+  /* definition and creation of TempSoundEffectTimer */
+  osTimerDef(TempSoundEffectTimer, CallbackTempSoundEffectTimer);
+  TempSoundEffectTimerHandle = osTimerCreate(osTimer(TempSoundEffectTimer), osTimerPeriodic, NULL);
 
   /* USER CODE BEGIN RTOS_TIMERS */
 	/* start timers, add new ones, ... */
@@ -560,16 +566,12 @@ void StartMeasureTask(void const * argument)
 
 		if (work>10) {
 			ringtone = 0;
-			HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, GPIO_PIN_SET);
-		} else {
-			ringtone = -1;
-			HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, GPIO_PIN_RESET);
-		}
+		} else if (kalmanFilterA(&ksTemp, BSP_TSENSOR_ReadTemp()) - temperature > 0.04){
+			ringtone = 1;
 
-		if (temperature>35) {
-				HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, GPIO_PIN_RESET);
-			} else {
-				HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, GPIO_PIN_SET);
+		}
+		else {
+			ringtone = -1;
 			}
 
 		osSignalSet(transmitHandle, 0x0001);
@@ -621,8 +623,17 @@ void StartListenTask(void const * argument)
 		osMutexWait(dataMutexHandle, osWaitForever);
 		HAL_DAC_Start_DMA(&hdac1, DAC_CHANNEL_1, sin_lookup_chord, 180,
 				DAC_ALIGN_12B_R);
-		if (ringtone >= 0) {
-			osTimerStart(SoundEffectTimerHandle, 250);
+		if (ringtone == 0) {
+			HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, GPIO_PIN_SET);
+			osTimerStart(WorkSoundEffectTimerHandle, 250);
+		}
+		else if (ringtone == 1){
+			HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, GPIO_PIN_RESET);
+			osTimerStart(TempSoundEffectTimerHandle, 250);
+		}
+		else{
+			HAL_GPIO_WritePin(GREEN_LED_GPIO_Port, GREEN_LED_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(RED_LED_GPIO_Port, RED_LED_Pin, GPIO_PIN_SET);
 		}
 
 		osMutexRelease(dataMutexHandle);
@@ -630,32 +641,60 @@ void StartListenTask(void const * argument)
   /* USER CODE END StartListenTask */
 }
 
-/* CallbackSoundEffectTimer function */
-void CallbackSoundEffectTimer(void const * argument)
+/* CallbackWorkSoundEffectTimer function */
+void CallbackWorkSoundEffectTimer(void const * argument)
 {
-  /* USER CODE BEGIN CallbackSoundEffectTimer */
+  /* USER CODE BEGIN CallbackWorkSoundEffectTimer */
 	switch (note) {
-	case 0:
-		memcpy(sin_lookup_chord, sin_lookup_C6, sizeof(sin_lookup_chord));
-		note += 1;
-		break;
-	case 1:
-		memcpy(sin_lookup_chord, sin_lookup_E6, sizeof(sin_lookup_chord));
-		note += 1;
-		break;
-	case 2:
-		memcpy(sin_lookup_chord, sin_lookup_G6, sizeof(sin_lookup_chord));
-		note += 1;
-		break;
-	default:
-		note = ringtone;
-		memset(sin_lookup_chord, 0, sizeof(sin_lookup_chord));
-		HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_1);
-		osTimerStop(SoundEffectTimerHandle);
+		case 0:
+			memcpy(sin_lookup_chord, sin_lookup_C6, sizeof(sin_lookup_chord));
+			note += 1;
+			break;
+		case 1:
+			memcpy(sin_lookup_chord, sin_lookup_E6, sizeof(sin_lookup_chord));
+			note += 1;
+			break;
+		case 2:
+			memcpy(sin_lookup_chord, sin_lookup_G6, sizeof(sin_lookup_chord));
+			note += 1;
+			break;
+		default:
+			note = 0;
+			memset(sin_lookup_chord, 0, sizeof(sin_lookup_chord));
+			HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_1);
+			osTimerStop(WorkSoundEffectTimerHandle);
 
-	}
+		}
 
-  /* USER CODE END CallbackSoundEffectTimer */
+  /* USER CODE END CallbackWorkSoundEffectTimer */
+}
+
+/* CallbackTempSoundEffectTimer function */
+void CallbackTempSoundEffectTimer(void const * argument)
+{
+  /* USER CODE BEGIN CallbackTempSoundEffectTimer */
+	switch (note) {
+		case 0:
+			memcpy(sin_lookup_chord, sin_lookup_E6, sizeof(sin_lookup_chord));
+			note += 1;
+			break;
+		case 1:
+			memcpy(sin_lookup_chord, sin_lookup_G6, sizeof(sin_lookup_chord));
+			note += 1;
+			break;
+		case 2:
+			memcpy(sin_lookup_chord, sin_lookup_C6, sizeof(sin_lookup_chord));
+			note += 1;
+			break;
+		default:
+			note = 0;
+			memset(sin_lookup_chord, 0, sizeof(sin_lookup_chord));
+			HAL_DAC_Stop_DMA(&hdac1, DAC_CHANNEL_1);
+			osTimerStop(TempSoundEffectTimerHandle);
+
+		}
+
+  /* USER CODE END CallbackTempSoundEffectTimer */
 }
 
  /**

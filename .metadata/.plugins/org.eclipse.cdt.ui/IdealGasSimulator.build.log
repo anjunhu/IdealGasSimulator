@@ -1,10 +1,10 @@
-09:30:15 **** Incremental Build of configuration Debug for project IdealGasSimulator ****
+11:23:42 **** Incremental Build of configuration Debug for project IdealGasSimulator ****
 make -j4 all 
 arm-none-eabi-size   IdealGasSimulator.elf 
    text	   data	    bss	    dec	    hex	filename
-  50172	    248	   9288	  59708	   e93c	IdealGasSimulator.elf
+  50740	    248	   9296	  60284	   eb7c	IdealGasSimulator.elf
 Finished building: default.size.stdout
  
 
-09:30:15 Build Finished. 0 errors, 0 warnings. (took 590ms)
+11:23:42 Build Finished. 0 errors, 0 warnings. (took 388ms)
 

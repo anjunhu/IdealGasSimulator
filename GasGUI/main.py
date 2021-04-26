@@ -8,7 +8,8 @@ HEIGHT = 500
 IDEAL_GAS_CONST = 8.31446261815324
 ATM_PRESSURE = 1013
 
-# Reference: https://stackoverflow.com/questions/49710067/generating-multiple-moving-objects-in-the-tkinter-canvas
+# Reference: Reblochon Masque. "Generating Multiple Moving Objects In The Tkinter Canvas"
+# https://stackoverflow.com/questions/49710067/generating-multiple-moving-objects-in-the-tkinter-canvas
 class Particle:
 
     def __init__(self):

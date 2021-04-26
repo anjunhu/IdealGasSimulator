@@ -20,16 +20,9 @@ float gyro2work (float* gyro){
 	gyro_dps[0] = gyro[0]/1000;
 	gyro_dps[1] = gyro[1]/1000;
 	gyro_dps[2] = gyro[2]/1000;
-	float inertia = 0.001*0.5*0.5; // based on standard atomic weight
+	float inertia = 0.001*0.5*0.5; 
+	// based on standard atomic weight, assume mean free path = 0.5m
 	return 0.5*inertia*(gyro_dps[0]*gyro_dps[0] + gyro_dps[1]*gyro_dps[1]+gyro_dps[2]*gyro_dps[2]);
-}
-
-void leftRotateOne(float* InputArray, int length)
-{
-    int temp = InputArray[0], i;
-    for (i = 0; i < length - 1; i++)
-        InputArray[i] = InputArray[i + 1];
-    InputArray[length-1] = temp;
 }
 
 #endif /* INC_PHYSICS_H_ */

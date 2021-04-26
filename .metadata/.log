@@ -1877,3 +1877,35 @@ java.io.FileNotFoundException: D:\202101\ECSE444\IdealGasSimulator\IdealGasSimul
 !MESSAGE OK
 !SUBENTRY 1 org.eclipse.core.resources 4 77 2021-04-14 18:31:22.522
 !MESSAGE D:\202101\ECSE444\IdealGasSimulator\IdealGasSimulator overlaps the location of another project: 'IdealGasSimulator'
+!SESSION 2021-04-25 20:38:49.073 -----------------------------------------------
+eclipse.buildId=Version 1.5.1
+java.version=1.8.0_272
+java.vendor=AdoptOpenJDK
+BootLoader constants: OS=win32, ARCH=x86_64, WS=win32, NL=en_CA
+Framework arguments:  D:\202101\ECSE444\IdealGasSimulator\IdealGasSimulator\.project
+Command-line arguments:  -os win32 -ws win32 -arch x86_64 D:\202101\ECSE444\IdealGasSimulator\IdealGasSimulator\.project
+
+!ENTRY org.eclipse.core.resources 2 10035 2021-04-25 20:38:54.464
+!MESSAGE The workspace exited with unsaved changes in the previous session; refreshing workspace to recover changes.
+
+!ENTRY com.st.stm32cube.ide.mcu.informationcenter 4 4 2021-04-25 20:39:02.377
+!MESSAGE CubeMX plugin appears to be active, Log4j initialization might be too late.
+
+!ENTRY com.st.stm32cube.ide.mcu.informationcenter 1 1 2021-04-25 20:39:02.477
+!MESSAGE Log4j initialized with config file D:\202101\ECSE444\IdealGasSimulator\.metadata\.log4j.xml
+
+!ENTRY com.st.stm32cube.ide.mcu.ide 1 1 2021-04-25 20:39:12.869
+!MESSAGE Started RMI Server, listening on port 41337
+
+!ENTRY org.eclipse.core.resources 4 77 2021-04-25 20:39:16.064
+!MESSAGE Invalid project description.
+!SUBENTRY 1 unknown 0 0 2021-04-25 20:39:16.064
+!MESSAGE OK
+!SUBENTRY 1 org.eclipse.core.resources 4 77 2021-04-25 20:39:16.064
+!MESSAGE D:\202101\ECSE444\IdealGasSimulator\IdealGasSimulator overlaps the location of another project: 'IdealGasSimulator'
+
+!ENTRY com.st.stm32cube.ide.mcu.ide 4 4 2021-04-25 20:39:16.669
+!MESSAGE com.st.stm32cube.ide.mcu.ide/META-INF/version/build_ref file not found, build reference will not be reported into properties
+
+!ENTRY org.eclipse.cdt.dsf 4 10001 2021-04-25 20:39:52.409
+!MESSAGE Target not available.

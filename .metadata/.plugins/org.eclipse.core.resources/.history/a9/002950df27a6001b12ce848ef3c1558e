@@ -551,8 +551,8 @@ void StartMeasureTask(void const * argument)
 	/* USER CODE BEGIN 5 */
 	/* Infinite loop */
 	for (;;) {
-		// sampling rate = 100Hz
-		osDelay(10);
+		// sampling rate = 200Hz
+		osDelay(50);
 
 		// ensure the buffer is safe to write
 		osMutexWait(dataMutexHandle, osWaitForever);

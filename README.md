@@ -1,4 +1,5 @@
-# ECSE444 Final Project: Interactive IdealGasSimulator
+# ECSE444 Final Project: Interactive Ideal Gas Simulator
+![gui](https://github.com/anjunhu/IdealGasSimulator/blob/main/gui.PNG?raw=true)
 ## Table of contents
 * [General info](#general-info)
 * [Features](#features)
